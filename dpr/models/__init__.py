@@ -19,6 +19,27 @@ def init_hf_bert_biencoder(args, **kwargs):
     return get_bert_biencoder_components(args, **kwargs)
 
 
+def init_hf_bert_biencoder_share(args, **kwargs):
+    if importlib.util.find_spec("transformers") is None:
+        raise RuntimeError('Please install transformers lib')
+    from .hf_models import get_bert_biencoder_share_components
+    return get_bert_biencoder_share_components(args, **kwargs)
+
+
+def init_hf_bert_biencoder_share_att(args, **kwargs):
+    if importlib.util.find_spec("transformers") is None:
+        raise RuntimeError('Please install transformers lib')
+    from .hf_models import get_bert_biencoder_share_att_components
+    return get_bert_biencoder_share_att_components(args, **kwargs)
+
+
+def init_hf_bert_biencoder_share_att_pooler(args, **kwargs):
+    if importlib.util.find_spec("transformers") is None:
+        raise RuntimeError('Please install transformers lib')
+    from .hf_models import get_bert_biencoder_share_att_pooler_components
+    return get_bert_biencoder_share_att_pooler_components(args, **kwargs)
+
+
 def init_hf_bert_reader(args, **kwargs):
     if importlib.util.find_spec("transformers") is None:
         raise RuntimeError('Please install transformers lib')
@@ -56,6 +77,9 @@ def init_hf_roberta_tenzorizer(args, **kwargs):
 
 BIENCODER_INITIALIZERS = {
     'hf_bert': init_hf_bert_biencoder,
+    'hf_bert_share': init_hf_bert_biencoder_share,
+    'hf_bert_share_att': init_hf_bert_biencoder_share_att,
+    'hf_bert_share_att_pooler': init_hf_bert_biencoder_share_att_pooler,
     'pytext_bert': init_pytext_bert_biencoder,
     'fairseq_roberta': init_fairseq_roberta_biencoder,
 }

@@ -78,8 +78,8 @@ def attention_dot_product_scores(q_vector: T, ctx_vectors: T) -> T:
     return torch.einsum("id,ijd->ij", q_vector, ctx_vectors)
 
 
-class BiEncoder(nn.Module):
-    """Bi-Encoder model component. Encapsulates query/question and context/passage encoders."""
+class BiEncoderAtt(nn.Module):
+    """Bi-Encoder model component with attention. Encapsulates query/question and context/passage encoders."""
 
     def __init__(
         self,
@@ -88,7 +88,7 @@ class BiEncoder(nn.Module):
         fix_q_encoder: bool = False,
         fix_ctx_encoder: bool = False,
     ):
-        super(BiEncoder, self).__init__()
+        super(BiEncoderAtt, self).__init__()
         self.question_model = question_model
         self.ctx_model = ctx_model
         self.fix_q_encoder = fix_q_encoder
@@ -147,7 +147,7 @@ class BiEncoder(nn.Module):
             self.fix_ctx_encoder,
         )
 
-        return q_pooled_out, ctx_pooled_out
+        return q_pooled_out, _ctx_seq
 
     @classmethod
     def create_biencoder_input(
@@ -239,52 +239,52 @@ class BiEncoder(nn.Module):
         )
 
 
-class BiEncoderNllLoss(object):
-    def calc(
-        self,
-        q_vectors: T,
-        ctx_vectors: T,
-        positive_idx_per_question: list,
-        hard_negatice_idx_per_question: list = None,
-    ) -> Tuple[T, int]:
-        """
-        Computes nll loss for the given lists of question and ctx vectors.
-        Note that although hard_negative_idx_per_question in not currently in use, one can use it for the
-        loss modifications. For example - weighted NLL with different factors for hard vs regular negatives.
-        :return: a tuple of loss value and amount of correct predictions per batch
-        """
-        scores = self.get_scores(q_vectors, ctx_vectors)
-
-        if len(q_vectors.size()) > 1:
-            q_num = q_vectors.size(0)
-            scores = scores.view(q_num, -1)
-
-        softmax_scores = F.log_softmax(scores, dim=1)
-
-        loss = F.nll_loss(
-            softmax_scores,
-            torch.tensor(positive_idx_per_question).to(softmax_scores.device),
-            reduction="mean",
-        )
-
-        max_score, max_idxs = torch.max(softmax_scores, 1)
-        correct_predictions_count = (
-            max_idxs == torch.tensor(positive_idx_per_question).to(max_idxs.device)
-        ).sum()
-        return loss, correct_predictions_count
-
-    @staticmethod
-    def get_scores(q_vector: T, ctx_vectors: T) -> T:
-
-        """ Added by fangkai to support attention based summarization """
-
-        if len(ctx_vectors.size()) == 3:
-            ctx_vectors = attention_pool(q_vector, ctx_vectors)
-            return attention_dot_product_scores(q_vector, ctx_vectors)
-
-        f = BiEncoderNllLoss.get_similarity_function()
-        return f(q_vector, ctx_vectors)
-
-    @staticmethod
-    def get_similarity_function():
-        return dot_product_scores
+# class BiEncoderNllLoss(object):
+#     def calc(
+#         self,
+#         q_vectors: T,
+#         ctx_vectors: T,
+#         positive_idx_per_question: list,
+#         hard_negatice_idx_per_question: list = None,
+#     ) -> Tuple[T, int]:
+#         """
+#         Computes nll loss for the given lists of question and ctx vectors.
+#         Note that although hard_negative_idx_per_question in not currently in use, one can use it for the
+#         loss modifications. For example - weighted NLL with different factors for hard vs regular negatives.
+#         :return: a tuple of loss value and amount of correct predictions per batch
+#         """
+#         scores = self.get_scores(q_vectors, ctx_vectors)
+#
+#         if len(q_vectors.size()) > 1:
+#             q_num = q_vectors.size(0)
+#             scores = scores.view(q_num, -1)
+#
+#         softmax_scores = F.log_softmax(scores, dim=1)
+#
+#         loss = F.nll_loss(
+#             softmax_scores,
+#             torch.tensor(positive_idx_per_question).to(softmax_scores.device),
+#             reduction="mean",
+#         )
+#
+#         max_score, max_idxs = torch.max(softmax_scores, 1)
+#         correct_predictions_count = (
+#             max_idxs == torch.tensor(positive_idx_per_question).to(max_idxs.device)
+#         ).sum()
+#         return loss, correct_predictions_count
+#
+#     @staticmethod
+#     def get_scores(q_vector: T, ctx_vectors: T) -> T:
+#
+#         """ Added by fangkai to support attention based summarization """
+#
+#         if len(ctx_vectors.size()) == 3:
+#             ctx_vectors = attention_pool(q_vector, ctx_vectors)
+#             return attention_dot_product_scores(q_vector, ctx_vectors)
+#
+#         f = BiEncoderNllLoss.get_similarity_function()
+#         return f(q_vector, ctx_vectors)
+#
+#     @staticmethod
+#     def get_similarity_function():
+#         return dot_product_scores

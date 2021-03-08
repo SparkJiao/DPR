@@ -12,6 +12,7 @@ BiEncoder component + loss function for 'all-in-batch' training
 import collections
 import logging
 import random
+from abc import ABC
 from typing import Tuple, List
 
 import numpy as np
@@ -78,8 +79,45 @@ def attention_dot_product_scores(q_vector: T, ctx_vectors: T) -> T:
     return torch.einsum("id,ijd->ij", q_vector, ctx_vectors)
 
 
-class BiEncoder(nn.Module):
-    """Bi-Encoder model component. Encapsulates query/question and context/passage encoders."""
+class Pooler(nn.Module, ABC):
+    def __init__(self, input_size):
+        super().__init__()
+
+        self.dense = nn.Linear(input_size, input_size)
+        self.activation = nn.Tanh()
+
+    def forward(self, hidden_states):
+        return self.activation(self.dense(hidden_states))
+
+
+class SimilarityHead(nn.Module, ABC):
+    def __init__(self, input_size):
+        super().__init__()
+
+        self.pooler = Pooler(input_size)
+        self.dense = nn.Linear(input_size, 1)
+
+    def forward(self, hidden_states):
+        return self.dense(self.pooler(hidden_states)).squeeze(-1)
+
+
+similarity_head: SimilarityHead
+
+
+def pooler_similarity_scores(q_vector: T, ctx_vectors: T) -> T:
+    """
+    :param q_vector:
+    :param ctx_vectors:
+    :return:
+    """
+    return similarity_head(ctx_vectors)
+
+
+class BiEncoderAttPooler(nn.Module):
+    """
+        Bi-Encoder model component with attention module and a pooler for prediction.
+    Encapsulates query/question and context/passage encoders.
+    """
 
     def __init__(
         self,
@@ -88,11 +126,16 @@ class BiEncoder(nn.Module):
         fix_q_encoder: bool = False,
         fix_ctx_encoder: bool = False,
     ):
-        super(BiEncoder, self).__init__()
+        super(BiEncoderAttPooler, self).__init__()
         self.question_model = question_model
         self.ctx_model = ctx_model
         self.fix_q_encoder = fix_q_encoder
         self.fix_ctx_encoder = fix_ctx_encoder
+
+        self.similarity_head = SimilarityHead(question_model.config.hidden_size)
+
+        global similarity_head
+        similarity_head = self.similarity_head
 
     @staticmethod
     def get_representation(
@@ -147,7 +190,7 @@ class BiEncoder(nn.Module):
             self.fix_ctx_encoder,
         )
 
-        return q_pooled_out, ctx_pooled_out
+        return q_pooled_out, _ctx_seq
 
     @classmethod
     def create_biencoder_input(
@@ -280,7 +323,8 @@ class BiEncoderNllLoss(object):
 
         if len(ctx_vectors.size()) == 3:
             ctx_vectors = attention_pool(q_vector, ctx_vectors)
-            return attention_dot_product_scores(q_vector, ctx_vectors)
+            # return attention_dot_product_scores(q_vector, ctx_vectors)
+            return pooler_similarity_scores(q_vector, ctx_vectors)
 
         f = BiEncoderNllLoss.get_similarity_function()
         return f(q_vector, ctx_vectors)

@@ -22,6 +22,8 @@ from transformers.tokenization_roberta import RobertaTokenizer
 
 from dpr.utils.data_utils import Tensorizer
 from .biencoder import BiEncoder
+from .biencoder_att import BiEncoderAtt
+from .biencoder_att_pooler import BiEncoderAttPooler
 from .reader import Reader
 
 logger = logging.getLogger(__name__)
@@ -46,6 +48,113 @@ def get_bert_biencoder_components(args, inference_only: bool = False, **kwargs):
         args.fix_ctx_encoder if hasattr(args, "fix_ctx_encoder") else False
     )
     biencoder = BiEncoder(
+        question_encoder, ctx_encoder, fix_ctx_encoder=fix_ctx_encoder
+    )
+
+    optimizer = (
+        get_optimizer(
+            biencoder,
+            learning_rate=args.learning_rate,
+            adam_eps=args.adam_eps,
+            weight_decay=args.weight_decay,
+        )
+        if not inference_only
+        else None
+    )
+
+    tensorizer = get_bert_tensorizer(args)
+
+    return tensorizer, biencoder, optimizer
+
+
+def get_bert_biencoder_share_components(args, inference_only: bool = False, **kwargs):
+    dropout = args.dropout if hasattr(args, "dropout") else 0.0
+    question_encoder = HFBertEncoder.init_encoder(
+        args.pretrained_model_cfg,
+        projection_dim=args.projection_dim,
+        dropout=dropout,
+        **kwargs
+    )
+    # ctx_encoder = HFBertEncoder.init_encoder(
+    #     args.pretrained_model_cfg,
+    #     projection_dim=args.projection_dim,
+    #     dropout=dropout,
+    #     **kwargs
+    # )
+    ctx_encoder = question_encoder
+
+    fix_ctx_encoder = (
+        args.fix_ctx_encoder if hasattr(args, "fix_ctx_encoder") else False
+    )
+    biencoder = BiEncoder(
+        question_encoder, ctx_encoder, fix_ctx_encoder=fix_ctx_encoder
+    )
+
+    optimizer = (
+        get_optimizer(
+            biencoder,
+            learning_rate=args.learning_rate,
+            adam_eps=args.adam_eps,
+            weight_decay=args.weight_decay,
+        )
+        if not inference_only
+        else None
+    )
+
+    tensorizer = get_bert_tensorizer(args)
+
+    return tensorizer, biencoder, optimizer
+
+
+def get_bert_biencoder_share_att_components(args, inference_only: bool = False, **kwargs):
+    dropout = args.dropout if hasattr(args, "dropout") else 0.0
+    question_encoder = HFBertEncoder.init_encoder(
+        args.pretrained_model_cfg,
+        projection_dim=args.projection_dim,
+        dropout=dropout,
+        **kwargs
+    )
+
+    ctx_encoder = question_encoder
+
+    fix_ctx_encoder = (
+        args.fix_ctx_encoder if hasattr(args, "fix_ctx_encoder") else False
+    )
+    biencoder = BiEncoderAtt(
+        question_encoder, ctx_encoder, fix_ctx_encoder=fix_ctx_encoder
+    )
+
+    optimizer = (
+        get_optimizer(
+            biencoder,
+            learning_rate=args.learning_rate,
+            adam_eps=args.adam_eps,
+            weight_decay=args.weight_decay,
+        )
+        if not inference_only
+        else None
+    )
+
+    tensorizer = get_bert_tensorizer(args)
+
+    return tensorizer, biencoder, optimizer
+
+
+def get_bert_biencoder_share_att_pooler_components(args, inference_only: bool = False, **kwargs):
+    dropout = args.dropout if hasattr(args, "dropout") else 0.0
+    question_encoder = HFBertEncoder.init_encoder(
+        args.pretrained_model_cfg,
+        projection_dim=args.projection_dim,
+        dropout=dropout,
+        **kwargs
+    )
+
+    ctx_encoder = question_encoder
+
+    fix_ctx_encoder = (
+        args.fix_ctx_encoder if hasattr(args, "fix_ctx_encoder") else False
+    )
+    biencoder = BiEncoderAttPooler(
         question_encoder, ctx_encoder, fix_ctx_encoder=fix_ctx_encoder
     )
 
